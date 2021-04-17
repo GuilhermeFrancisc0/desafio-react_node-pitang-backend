@@ -17,6 +17,15 @@ class Agendamento{
 
         res.send({data: agendamento}); // retornando para requisição um agendamento criado agora
     }
+
+    async update(req,res){
+    
+        const {body, params: {id}} = req;
+    
+        const agendamento = await AgendamentoModel.findByIdAndUpdate(id,body,{new :true});
+        
+        res.send({data : agendamento});
+      }
 }
 
 module.exports = new Agendamento();

@@ -7,4 +7,6 @@ Routes.get('/agendamento',AgendamentoController.index); // Enviando o res e o re
 
 Routes.post('/agendamento',AgendamentoController.store);
 
+Routes.put('/agendamento/:id',AgendamentoController.update);
+
 module.exports= Routes;
