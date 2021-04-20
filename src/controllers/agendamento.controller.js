@@ -1,31 +1,79 @@
-const AgendamentoModel = require('../models/agendamento.model'); // AgendamentoModel, entidade de banco de dados
+const AgendamentoModel = require("../models/agendamento.model"); // AgendamentoModel, entidade de banco de dados
+var getMinutes = require("date-fns/getMinutes");
+var getHours = require("date-fns/getHours");
+class Agendamento {
+  async index(req, res) {// Função que vai trazer todos os dados do agendamento(info gerais)
 
-class Agendamento{
+    const agendamentos = await AgendamentoModel.find();// find trazendo todos os dados da entidade de agendamento
 
-    async index(req,res){ // Função que vai trazer todos os dados do agendamento(info gerais)
-        
-        const agendamentos = await AgendamentoModel.find(); // find traz todos os dados da entidade de agendamento
-        
-        res.send({data: agendamentos});
-    }
+    res.send({ data: agendamentos });
+  }
 
-    async store(req,res){ // Função para armazenar valores
-        
-        const body = req.body;// dados que se passam durante a requisição
-        
-        const agendamento = await AgendamentoModel.create(body); //criando um novo agendamento com o create();
+  async store(req, res) {// Função para armazenar agendamentos
 
-        res.send({data: agendamento}); // retornando para requisição um agendamento criado agora
-    }
+    const body = req.body; // body do request (agendamento)
+    const { dataHoraAgend, idoso } = req.body;
+    // console.log("agendamento do request",req.body);
 
-    async update(req,res){
-    
-        const {body, params: {id}} = req;
-    
-        const agendamento = await AgendamentoModel.findByIdAndUpdate(id,body,{new :true});
-        
-        res.send({data : agendamento});
+    const dataHoraAgendConverted = new Date(dataHoraAgend);
+    const hora = getHours(dataHoraAgendConverted);
+    const minuto = getMinutes(dataHoraAgendConverted);
+    // console.log(hora, minuto);
+
+    try {
+      if (minuto == 30 || minuto == 0) { //Impede a utilização de minutos diferentes de 00 ou 30
+        if (hora >= 8 && hora <= 17 && minuto <= 30) { //Impede saida do range de horários válidos(8:00-17:30)
+          
+          //Obtendo, do banco de dados, o agendamento que tem a data e o horário feita no request  
+          const agendamentoBD = await AgendamentoModel.findOne({dataHoraAgend}).lean();
+          // console.log("agendamento do banco:", agendamento);
+
+          if (!agendamentoBD) {// Se não houver o agendamento no banco de dados, cria instantaneamente
+            
+            const agendamentoCreate = await AgendamentoModel.create(body);
+
+            res.send({ data: agendamentoCreate });
+          } 
+          else {//Tem o agendamento no banco de dados         
+            if (idoso && !agendamentoBD.idoso) {// Idoso do request sobrescrevendo o jovem do banco
+            
+              const agendamentoIdoso = await AgendamentoModel.findOne({dataHoraAgend}).replaceOne(body);
+              // await agendamento.deleteOne(); // Remove o jovem do banco
+              //console.log("agendamento sobrescritor: ", agendamentoIdoso);
+              // const agendamentoIdoso = await AgendamentoModel.create(body); // Add Idoso do request
+  
+              return res.send({ data: agendamentoIdoso });
+            }
+            if (agendamentoBD.idoso) {// Idoso no horário, não pode ser removido em nenhuma hipotese  
+              throw new Error("Já tem um idoso no horário!");
+            }
+            throw new Error("horário ocupado!"); // Jovem tentando acessar horario ocupado
+          }
+        } else {
+          throw new Error("Horário do agendamento inválido!");
+        }
+      } else {
+        throw new Error("Minutos do Horário do agendamento inválido!");
       }
+    } catch (error) {
+      res.status(400).send({ message: error.message });
+    }
+  }
+
+  async update(req, res) { //Função para atualizar os dados da área do enfermeiro
+    const {
+      body,
+      params: { id },
+    } = req;
+
+    // const { idoso, dataHoraAgend } = req.body;
+    // console.log("idoso:", idoso);
+    // console.log("data:", dataHoraAgend);
+
+    const agendamento = await AgendamentoModel.findByIdAndUpdate(id, body, {new: true});
+
+    res.send({ data: agendamento });
+  }
 }
 
 module.exports = new Agendamento();
